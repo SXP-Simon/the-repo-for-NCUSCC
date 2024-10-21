@@ -462,8 +462,8 @@ np.testing.assert_allclose(result, np.dot(A, B))
 ***
 ## 特别鸣谢
 
-***太阳王子THINKER-ONLY[https://github.com/THINKER-ONLY](https://github.com/THINKER-ONLY)***    
-***浩神Howxu[https://github.com/HowXu](https://github.com/HowXu)***   
-***orchid[https://github.com/orchiddell0](https://github.com/orchiddell0)***    
-***龙抬头***   
-***客服小祥***  
+·***太阳王子THINKER-ONLY[https://github.com/THINKER-ONLY](https://github.com/THINKER-ONLY)***    
+·***浩神Howxu[https://github.com/HowXu](https://github.com/HowXu)***   
+·***orchid[https://github.com/orchiddell0](https://github.com/orchiddell0)***    
+·***longtitle仙贝[https://github.com/tinymonster123](https://github.com/tinymonster123)***   
+·***客服小祥[https://github.com/hangone](https://github.com/hangone)***  
