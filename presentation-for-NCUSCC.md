@@ -90,12 +90,13 @@ git clone git@github.com:SXP-Simon/the-repo-for-NCUSCC.git
 
 **在此声明，我的本次实验中选择的矩阵乘法计算方法为最原始的手撕矩阵方法，使用for循环的嵌套，
 时间复杂度为O(n^3),至于原因我在后文实验过程中遇到的问题部分会做出回答。由于时间复杂度过大，
-我选择采取numba的njit装饰器对python语法进行c类语言转译加速，两个方法将尽量进行控制变量比较。**
+我选择采取numba的njit装饰器对python语法进行c类语言转译加速，将尽量进行控制变量比较。
+分析部分不会将比较两者的柱状图呈现，只比较不同规模的进程数效果。多方案比较将在分析部分后呈现。**
 
 ### 1.multiprocessing库的分析
 
-        multiprocessing中使用简洁的语法来调用多核编程方法，简化了实现多进程编程的复杂性，适合单机玩家享受。
-    这里我选择比较有效的进程池方法与异步方法来进行并行计算，采用with方法来自动管理资源。
+multiprocessing中使用简洁的语法来调用多核编程方法，简化了实现多进程编程的复杂性，适合单机玩家享受。
+这里我选择比较有效的进程池方法与异步方法来进行并行计算，采用with方法来自动管理资源。
 
 ```python
 import numpy as np
@@ -159,18 +160,236 @@ if __name__ == "__main__":
     np.testing.assert_allclose(result, np.dot(A, B))
     #验证计算结果
 ```
+**multiprocessing结果**（出了点小问题但是没有修改，下面图的横轴为进程数，纵轴为时间（s），
+依次为1000，2000，5000和10000规模的矩阵乘法）
+
+![mp_1000.png](https://www.helloimg.com/i/2024/10/21/6715d2b5ec2c1.png)
+![mp_2000.png](https://www.helloimg.com/i/2024/10/21/6715d2b618518.png)
+![mp_5000.png](https://www.helloimg.com/i/2024/10/21/6715d2b5d7378.png)
+![mp_10000.png](https://www.helloimg.com/i/2024/10/21/6715d2b5e6995.png)
+ 
+    经分析：
+    在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
+    在数据规模较大时，并行运算带来的加速效果明显，总体上进程越多，时间缩短，效率提高。
+    
+
 ### 2.mpi4py库分析
 
-        mpi4py是一个在python中实现MPI标准的库，提供面向对象接口使得python程序可以利用多处理器进行并行运算，
-    但是比较适合联机玩家（多机跨节点，服务器层面），单机玩家使用时优势不明显。我在实验过程中使用了进程间集体通信和
-    非阻塞通信等方法进行了测试。
+mpi4py是一个在python中实现MPI标准的库，提供面向对象接口使得python程序可以利用多处理器进行并行运算，
+但是比较适合联机玩家（多机跨节点，服务器层面），单机玩家使用时优势不明显。我在实验过程中使用了进程间集体通信和
+非阻塞通信等方法进行了测试。
 
 ```python
-...
+import numpy as np
+from mpi4py import MPI
+import time
+from numba import njit
 
+@njit()
+def matrix_multiply(A_block, B_block):
+    # 初始化结果矩阵块
+    result_block = np.zeros((A_block.shape[0], B_block.shape[1]))
+    # 使用基本的矩阵乘法实现
+    for i in range(A_block.shape[0]):
+        for j in range(B_block.shape[1]):
+            for k in range(A_block.shape[1]):
+                result_block[i, j] += A_block[i, k] * B_block[k, j]
+    return result_block
+@njit()
+def split_matrix(A, B, num_splits):
+    # 计算每个子块的大小
+    split_size_A = A.shape[0] // num_splits
+    split_size_B = B.shape[1] // num_splits
+    # 分割矩阵 A 和 B
+    A_splits = [np.ascontiguousarray(A[i*split_size_A:(i+1)*split_size_A]) for i in range(num_splits)]
+    B_splits = [np.ascontiguousarray(B[:, i*split_size_B:(i+1)*split_size_B]) for i in range(num_splits)]
+    return A_splits, B_splits
 
-#待补全
+def parallel_matrix_multiply(A, B, num_splits):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    # 计算每个进程的块索引
+    block_per_process = (num_splits * num_splits) // size
+    start_block = rank * block_per_process
+    end_block = (rank + 1) * block_per_process
+
+    # 分割矩阵
+    A_splits, B_splits = split_matrix(A, B, num_splits)
+
+    # 初始化结果矩阵
+    final_result = np.zeros((A.shape[0], B.shape[1]))
+
+    # 每个进程计算自己的块
+    requests = []
+    for block_idx in range(start_block, end_block):
+        i = block_idx // num_splits
+        j = block_idx % num_splits
+        result_block = matrix_multiply(A_splits[i], B_splits[j])
+
+        # 使用非阻塞发送将结果发送给根进程
+        req = comm.Isend(result_block, dest=0, tag=block_idx)
+        requests.append(req)
+
+    # 根进程收集所有结果
+    if rank == 0:
+        split_size_A = A.shape[0] // num_splits
+        split_size_B = B.shape[1] // num_splits
+        for block_idx in range(num_splits * num_splits):
+            i = block_idx // num_splits
+            j = block_idx % num_splits
+            result_block = np.zeros((split_size_A, split_size_B))
+            req = comm.Irecv(result_block, source=MPI.ANY_SOURCE, tag=block_idx)
+            req.Wait()
+            final_result[i*split_size_A:(i+1)*split_size_A, j*split_size_B:(j+1)*split_size_B] = result_block
+
+    # 等待所有非阻塞发送完成
+    MPI.Request.Waitall(requests)
+
+    return final_result
+
+if __name__ == "__main__":
+    n = 10000
+    A = np.random.rand(n, n)
+    B = np.random.rand(n, n)
+    num_splits = 10
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    if rank == 0:
+        starttime = time.time()
+        result = parallel_matrix_multiply(A, B, num_splits)
+        print("Time taken for parallel matrix multiply with MPI (non-blocking):", time.time() - starttime)
+
+        starttime = time.time()
+        np.dot(A, B)
+        print("Time taken for numpy dot product:", time.time() - starttime)
+
+        print(result.shape)
+        np.testing.assert_allclose(result, np.dot(A, B))
 
 ```
+
+**mpi4py结果**（由于10000规模时mpi方法时间太长，不方便计量，所以没有成功收集，
+10进程下mpi方法时间超过了1800s,2进程下超过了5400s,效果较差。）
+
+![mpi_1000.png](https://www.helloimg.com/i/2024/10/21/6715d5fa49656.png)
+![mpi_2000.png](https://www.helloimg.com/i/2024/10/21/6715d5fa3c878.png)
+![mpi_5000.png](https://www.helloimg.com/i/2024/10/21/6715d5fa3e936.png)
+
+    经分析：
+    在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
+    在数据规模较大时，并行运算带来的加速效果明显，总体上进程越多，时间缩短，效率提高。
+
+#### 拓展一个多进程库：joblib
+
+joblib是一个基于multiprocessing库的并行实现，特别优化了在数组处理和磁盘缓存发方面，
+语法简洁，容易上手。在服务启动后，第一次运行可能会比后续运行多耗时一些，因为需要分配进程。
+但一旦初始化完成，后续的并行计算将更加高效。
+
+安装joblib
+```terminal
+pip install joblib
+```
+joblib并行框架例子
+```python
+import numpy as np
+from joblib import Parallel, delayed
+import time
+from numba import njit
+
+@njit()
+def matrix_multiply(A_block, B_block):
+    # 初始化结果矩阵块
+    result_block = np.zeros((A_block.shape[0], B_block.shape[1]))
+    # 使用基本的矩阵乘法实现
+    for i in range(A_block.shape[0]):
+        for j in range(B_block.shape[1]):
+            for k in range(A_block.shape[1]):
+                result_block[i, j] += A_block[i, k] * B_block[k, j]
+    return result_block
+@njit()
+def split_matrix(A, B, num_splits):
+    # 计算每个子块的大小
+    split_size_A = A.shape[0] // num_splits
+    split_size_B = B.shape[1] // num_splits
+    # 分割矩阵 A 和 B
+    A_splits = [np.ascontiguousarray(A[i*split_size_A:(i+1)*split_size_A]) for i in range(num_splits)]
+    B_splits = [np.ascontiguousarray(B[:, i*split_size_B:(i+1)*split_size_B]) for i in range(num_splits)]
+    return A_splits, B_splits
+
+def parallel_matrix_multiply(A, B, num_splits):
+    A_splits, B_splits = split_matrix(A, B, num_splits)
+
+    # 使用 joblib 进行并行计算
+    results = Parallel(n_jobs=num_splits)(
+        delayed(matrix_multiply)(A_splits[i], B_splits[j])
+        for i in range(num_splits)
+        for j in range(num_splits)
+    )
+
+    # 初始化结果矩阵
+    final_result = np.zeros((A.shape[0], B.shape[1]))
+
+    # 将子块结果合并到最终结果矩阵中
+    split_size_A = A.shape[0] // num_splits
+    split_size_B = B.shape[1] // num_splits
+    for idx, (i, j) in enumerate([(i, j) for i in range(num_splits) for j in range(num_splits)]):
+        final_result[i*split_size_A:(i+1)*split_size_A, j*split_size_B:(j+1)*split_size_B] = results[idx]
+
+    return final_result
+
+if __name__ == "__main__":
+    n = 2000
+    A = np.random.rand(n, n)
+    B = np.random.rand(n, n)
+    num_splits = 8
+
+    starttime = time.time()
+    result = parallel_matrix_multiply(A, B, num_splits)
+    print("Time taken for parallel matrix multiply with joblib:", time.time() - starttime)
+
+    starttime = time.time()
+    np.dot(A, B)
+    print("Time taken for numpy dot product:", time.time() - starttime)
+
+    print(result.shape)
+    np.testing.assert_allclose(result, np.dot(A, B))
+```
+**joblib结果**（这里不做详细介绍，分别为1000，2000规模的矩阵乘法）
+
+![joblib_1000.png](https://www.helloimg.com/i/2024/10/21/6715d926a2150.png)
+![joblib_2000.png](https://www.helloimg.com/i/2024/10/21/6715d926a4bbe.png)
+
+    joblib数据量小时无优势，数据量大时优势明显，而且在多进程资源优化方面优势明显，
+    后文将用图像直观呈现。
+
+### 3.多方案的比较
+( 赛 博 斗 蛐 蛐 环 节 )
+
+![1000scale.png](https://www.helloimg.com/i/2024/10/21/6715db8506d11.png)
+![2000scale.png](https://www.helloimg.com/i/2024/10/21/6715db8513d37.png)
+![5000scale.png](https://www.helloimg.com/i/2024/10/21/6715db851fbcf.png)
+![10000scale.png](https://www.helloimg.com/i/2024/10/21/6715db8500419.png)
+
+    分析：
+    数据规模小时，mpi进程间非阻塞通讯提高了效率，良好利用了并行资源，速度较快；
+    数据规模大时，mpi方法由于单机局限，造成根进程瓶颈，主进程负担过大，并行效率下降明显。
+    multiprocessing库在数据规模大时效率明显高于mpi4py库，但是joblib还是比
+    单纯的multiprocessing高效。但是这并不表明mpi在大数据量时计算完全比不了
+    multiprocessing。
+    
+    网上查询结果获取的结论如下：
+
+    “如果你的应用主要在单机上运行，且不需要跨节点的分布式计算，
+    multiprocessing 可能是一个更简单、更易上手的选择。
+    如果你的应用需要在多节点的集群上运行（如服务器层面），
+    或者需要更高效的进程间通信和更好的可扩展性，mpi4py 可能是更好的选择。”
+
+
+## 三.实验过程中遇到的问题
+
 
 
