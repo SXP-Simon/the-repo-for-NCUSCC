@@ -1,9 +1,9 @@
 #  **南昌大学超算俱乐部考核题（ Python ）的实验报告**
-
+***
     FROM 回归天空
     QQ: 903928770
     微信：night-helianthus
-
+***
 ## **考核要求：**
 ![ECCF30E1EE39A0B2A385159BBBCAF462.jpg](https://www.helloimg.com/i/2024/10/20/671484f1c731b.jpg)
 ![7DACA7EB17E65C88127FE184F59C2501.jpg](https://www.helloimg.com/i/2024/10/20/671484f1b0a8b.jpg)
@@ -93,6 +93,8 @@ git clone git@github.com:SXP-Simon/the-repo-for-NCUSCC.git
 我选择采取numba的njit装饰器对python语法进行c类语言转译加速，将尽量进行控制变量比较。
 分析部分不会将比较两者的柱状图呈现，只比较不同规模的进程数效果。多方案比较将在分析部分后呈现。**
 
+***
+
 ### 1.multiprocessing库的分析
 
 multiprocessing中使用简洁的语法来调用多核编程方法，简化了实现多进程编程的复杂性，适合单机玩家享受。
@@ -172,6 +174,7 @@ if __name__ == "__main__":
     在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
     在数据规模较大时，并行运算带来的加速效果明显，总体上进程越多，时间缩短，效率提高。
     
+***
 
 ### 2.mpi4py库分析
 
@@ -283,6 +286,8 @@ if __name__ == "__main__":
     在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
     在数据规模较大时，并行运算带来的加速效果明显，总体上进程越多，时间缩短，效率提高。
 
+***
+
 #### 拓展一个多进程库：joblib
 
 joblib是一个基于multiprocessing库的并行实现，特别优化了在数组处理和磁盘缓存发方面，
@@ -365,6 +370,7 @@ if __name__ == "__main__":
 
     joblib数据量小时无优势，数据量大时优势明显，而且在多进程资源优化方面优势明显，
     后文将用图像直观呈现。
+***
 
 ### 3.多方案的比较
 ( 赛 博 斗 蛐 蛐 环 节 )
@@ -387,7 +393,7 @@ if __name__ == "__main__":
     multiprocessing 可能是一个更简单、更易上手的选择。
     如果你的应用需要在多节点的集群上运行（如服务器层面），
     或者需要更高效的进程间通信和更好的可扩展性，mpi4py 可能是更好的选择。”
-
+***
 
 ## 三.实验过程中遇到的问题
 
@@ -431,7 +437,6 @@ np.testing.assert_allclose(result, np.dot(A, B))
 
 ### 3.个人方面
 
-
 我在实验过程有几次从头开始的经历，最后我选择这种最复杂的方法来完成实验，几次重开有以下原因：
 
 #### 1.Python考题选择的人数少，加上对没有系统学习过线性代数的人来说，初期比较迷茫和吃力
@@ -454,11 +459,18 @@ np.testing.assert_allclose(result, np.dot(A, B))
 才开始对进行矩阵乘法项目的了解。这种强度对只有几个月学习经历的新手来说有点不太友好。
 但是马上弃坑会让之前的rust学习白费，考核结束后会考虑重新看看rust。
 
+***
+## 特别鸣谢
 
-## 四.特别鸣谢
-
-***太阳王子THINKER-ONLY[https://github.com/THINKER-ONLY](https://github.com/THINKER-ONLY)***
+***太阳王子THINKER-ONLY[https://github.com/THINKER-ONLY](https://github.com/THINKER-ONLY)***    
+***
 ***浩神Howxu[https://github.com/HowXu](https://github.com/HowXu)***
-***龙抬头***
-***客服小祥***
-***Copilot，智谱为代表的AI工具***
+***
+***orchid[https://github.com/orchiddell0](https://github.com/orchiddell0)***    
+***
+***龙抬头***   
+***
+***客服小祥***  
+***
+***Copilot，智谱为代表的AI工具***    
+***
