@@ -551,5 +551,6 @@ plt.savefig('文件名。svg',format='svg')
 ·***太阳王子THINKER-ONLY[https://github.com/THINKER-ONLY](https://github.com/THINKER-ONLY)***    
 ·***浩神Howxu[https://github.com/HowXu](https://github.com/HowXu)***   
 ·***orchid[https://github.com/orchiddell0](https://github.com/orchiddell0)***   
+·***彩彩CAICAIIs[https://github.com/CAICAIIs](https://github.com/CAICAIIs)***     
 ·***longtitle仙贝[https://github.com/tinymonster123](https://github.com/tinymonster123)***   
 ·***客服小祥[https://github.com/hangone](https://github.com/hangone)***  
