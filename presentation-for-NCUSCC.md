@@ -404,8 +404,62 @@ SciPy库里的dgemm方法也是差不多，但是如果我想参考它们并行�
 
 ```python
 #numpy内置方法完成矩阵乘法
+
+import numpy as np
+from multiprocessing import Pool
+import time
+
 def matrix_multiply(A, B):
-    return np.dot(A, B)
+    return A @ B
+
+def split_matrix(A, B, num_splits):
+    # 计算每个子块的大小
+    split_size_A = A.shape[0] // num_splits
+    split_size_B = B.shape[1] // num_splits
+    # 分割矩阵 A 和 B
+    A_splits = [np.ascontiguousarray(A[i*split_size_A:(i+1)*split_size_A]) for i in range(num_splits)]
+    B_splits = [np.ascontiguousarray(B[:, i*split_size_B:(i+1)*split_size_B]) for i in range(num_splits)]
+    return A_splits, B_splits
+
+def parallel_matrix_multiply(A, B, num_splits):
+    # 使用 with 语句管理进程池
+    with Pool(processes=num_splits) as pool:
+        A_splits, B_splits = split_matrix(A, B, num_splits)
+        results = []
+
+        for i in range(num_splits):
+            for j in range(num_splits):
+                # 并行计算矩阵块的乘法
+                result = pool.apply_async(matrix_multiply, (A_splits[i], B_splits[j]))
+                results.append((i, j, result))
+
+        # 初始化结果矩阵
+        final_result = np.zeros((A.shape[0], B.shape[1]))
+
+        # 将子块结果合并到最终结果矩阵中
+        split_size_A = A.shape[0] // num_splits
+        split_size_B = B.shape[1] // num_splits
+        for i, j, result in results:
+            final_result[i*split_size_A:(i+1)*split_size_A, j*split_size_B:(j+1)*split_size_B] = result.get()
+
+        return final_result
+
+if __name__ == "__main__":
+    n = 10000
+    A = np.random.rand(n, n)
+    B = np.random.rand(n, n)
+    num_splits = 8
+
+    starttime = time.time()
+    result = parallel_matrix_multiply(A, B, num_splits)
+    print("Time taken:", time.time() - starttime)
+
+    starttime = time.time()
+    np.dot(A, B)
+    print("Time taken:", time.time() - starttime)
+    print(result.shape)
+    np.testing.assert_allclose(result, np.dot(A, B))
+
 ```
 
 ```python
@@ -414,56 +468,88 @@ import numpy as np
 from scipy.linalg.blas import dgemm
 import time
 
-# 创建两个随机矩阵
-n = 10000
-A = np.random.rand(n, n)
-B = np.random.rand(n, n)
-start_time = time.time()
-# 使用 dgemm 进行矩阵乘法
-result = dgemm(alpha=1.0, a=A, b=B)
+import numpy as np
+from multiprocessing import Pool
+import time
+from scipy.linalg.blas import dgemm
 
-# 记录结束时间
-end_time = time.time()
+def matrix_multiply(A, B):
+    result = dgemm(alpha=1.0, a=A, b=B)
+    return result
 
-# 打印计算部分的时间
-print(f"矩阵乘法计算时间：{end_time - start_time}秒")
+def split_matrix(A, B, num_splits):
+    # 计算每个子块的大小
+    split_size_A = A.shape[0] // num_splits
+    split_size_B = B.shape[1] // num_splits
+    # 分割矩阵 A 和 B
+    A_splits = [np.ascontiguousarray(A[i*split_size_A:(i+1)*split_size_A]) for i in range(num_splits)]
+    B_splits = [np.ascontiguousarray(B[:, i*split_size_B:(i+1)*split_size_B]) for i in range(num_splits)]
+    return A_splits, B_splits
 
-#验证结果
-np.testing.assert_allclose(result, np.dot(A, B))
+def parallel_matrix_multiply(A, B, num_splits):
+    # 使用 with 语句管理进程池
+    with Pool(processes=num_splits) as pool:
+        A_splits, B_splits = split_matrix(A, B, num_splits)
+        results = []
+
+        for i in range(num_splits):
+            for j in range(num_splits):
+                # 并行计算矩阵块的乘法
+                result = pool.apply_async(matrix_multiply, (A_splits[i], B_splits[j]))
+                results.append((i, j, result))
+
+        # 初始化结果矩阵
+        final_result = np.zeros((A.shape[0], B.shape[1]))
+
+        # 将子块结果合并到最终结果矩阵中
+        split_size_A = A.shape[0] // num_splits
+        split_size_B = B.shape[1] // num_splits
+        for i, j, result in results:
+            final_result[i*split_size_A:(i+1)*split_size_A, j*split_size_B:(j+1)*split_size_B] = result.get()
+
+        return final_result
+
+if __name__ == "__main__":
+    n = 10000
+    A = np.random.rand(n, n)
+    B = np.random.rand(n, n)
+    num_splits = 8
+
+    starttime = time.time()
+    result = parallel_matrix_multiply(A, B, num_splits)
+    print("Time taken:", time.time() - starttime)
+
+    starttime = time.time()
+    np.dot(A, B)
+    print("Time taken:", time.time() - starttime)
+    print(result.shape)
+    np.testing.assert_allclose(result, np.dot(A, B))
 ```
+由于并行效率分析结果不佳，两个方法都被废弃。但是当要进行大规模矩阵乘法时，这两个都是很好的方法。
+
 
 ### 2.OpenMPI安装困难
 采用一堆方法安装最后没有成功，报错一直是'no module named mpi4py'，最后换用简单易用的MPICH解决。
+具体实现见前面MPICH的安装。
 
-### 3.个人方面
+### 3.ubuntu系统中安装的matplotlib进行数据可视化时调用plt.show()方法报错。
+警告信息表明Matplotlib 当前使用的是 agg后端，这是一个非GUI后端，通常用于生成图形文件而不是在屏幕上显示图形。
+如果你想要显示图形，你需要确保Matplotlib 使用的是一个 GUI后端，比如 TkAgg 、 Qt5Agg等。
+可以通过在代码中显式设置后端来解决这个问题，如:import matplotlib matplotlib.use('TkAgg')。
+import matplotlib.pyplot as plt确保这个设置在导入 pyplot之前进行。
 
-我在实验过程有几次从头开始的经历，最后我选择这种最复杂的方法来完成实验，几次重开有以下原因：
-
-#### 1.Python考题选择的人数少，加上对没有系统学习过线性代数的人来说，初期比较迷茫和吃力
-初期的我只能拿着题目无脑喂给AI让AI架构代码，但是弊端很大，例如错误百出但是不知道怎么修改。
-我当初是由于暑假时对爬虫有相关学习，了解过一点点的multiprocessing库，才最终选择Python考题。
-但是实际上手这个问题才发现问题的难点不只有并行的简单实现，我还要思考如何去选择比较优的办法实现并行，
-怎么让我一个没有过多基础的人可以简单地理解代码，莫名其妙导入了一堆的库我应该怎么用它们......
-由于可以交流的人很少，经常有疑惑而无处询问也没有人解答。
-#### 2.早期学习氛围导致对项目比较赶，对代码逻辑方面和效率方面的理解有点打折扣
-考核初期精力比较少，看到别人速通考核有点被压力到了。囫囵吞枣不求甚解地通过AI了解了一堆黑科技，
-但是这些黑科技由于其本身技术成熟，经过自己的魔改滥用以后，代码提升效率不佳，微乎其微的“进步”让我的进度停滞不前，
-浪费大量时间而做无用功， 最严重的是由于使用numpy库的dot 方法导致并行效率不进反退而导致自我怀疑，
-考核中的大部分时间都被我拿去优化numpy.dot方法的并行计算了，但是这个方法对并行效果的呈现不会很好。
-在考核时间限制最后这几天里， 由于早期对各种库知识的积累，我重新开始了考核项目的测试。
-#### 3.没有系统的学习知识，资料比较难找
-感觉只是看完知乎上一些科普性质的文章，对某些库的理解也不一定有很深，在考核结束后我还是将继续进行对各种
-第三方库知识的深入了解，如os库,matplotlib数据可视化,pandas库等，夯实Python基础。
-#### 4.rustlings的精力分散
-两边着手，但是rust知识的学习时间很短，现在也忘了很多。 考核初期我是利用AI完成rustlings后
-才开始对进行矩阵乘法项目的了解。这种强度对只有几个月学习经历的新手来说有点不太友好。
-但是马上弃坑会让之前的rust学习白费，考核结束后会考虑重新看看rust。
+其实也没有必要这样，只要不调用plt.show()就行，我们只需要将svg矢量图保存即可。
+```python
+plt.savefig('文件名。svg',format='svg')
+```
 
 ***
+最后的保留节目
+
 ## 特别鸣谢
 
 ·***太阳王子THINKER-ONLY[https://github.com/THINKER-ONLY](https://github.com/THINKER-ONLY)***    
 ·***浩神Howxu[https://github.com/HowXu](https://github.com/HowXu)***   
-·***orchid[https://github.com/orchiddell0](https://github.com/orchiddell0)***    
+·***orchid[https://github.com/orchiddell0](https://github.com/orchiddell0)***   
 ·***longtitle仙贝[https://github.com/tinymonster123](https://github.com/tinymonster123)***   
 ·***客服小祥[https://github.com/hangone](https://github.com/hangone)***  
