@@ -463,14 +463,7 @@ np.testing.assert_allclose(result, np.dot(A, B))
 ## 特别鸣谢
 
 ***太阳王子THINKER-ONLY[https://github.com/THINKER-ONLY](https://github.com/THINKER-ONLY)***    
-***
-***浩神Howxu[https://github.com/HowXu](https://github.com/HowXu)***
-***
+***浩神Howxu[https://github.com/HowXu](https://github.com/HowXu)***   
 ***orchid[https://github.com/orchiddell0](https://github.com/orchiddell0)***    
-***
 ***龙抬头***   
-***
 ***客服小祥***  
-***
-***Copilot，智谱为代表的AI工具***    
-***
