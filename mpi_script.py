@@ -68,10 +68,10 @@ def parallel_matrix_multiply(A, B, num_splits):
     return final_result
 
 if __name__ == "__main__":
-    n = 2000
+    n = 10000
     A = np.random.rand(n, n)
     B = np.random.rand(n, n)
-    num_splits = 8
+    num_splits = 10
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
