@@ -4,6 +4,9 @@
     QQ: 903928770
     微信：night-helianthus
 ***
+
+[TOC]
+
 ## **考核要求：**
 ![ECCF30E1EE39A0B2A385159BBBCAF462.jpg](https://www.helloimg.com/i/2024/10/20/671484f1c731b.jpg)
 ![7DACA7EB17E65C88127FE184F59C2501.jpg](https://www.helloimg.com/i/2024/10/20/671484f1b0a8b.jpg)
@@ -41,6 +44,17 @@ sudo snap refresh pycharm-community
 ```
 
 ### 3.pycharm虚拟环境中必要的环境配置
+**Python3的安装**
+打开终端检查是否有python3
+```bash
+python3 --version
+```
+若没有，进行安装
+```bash
+sudo apt update
+sudo apt install python3
+```
+
 **pip包管理器安装**
 创建一个新项目后，打开终端，进行pip包管理器安装
 ```bash
@@ -91,7 +105,7 @@ git clone git@github.com:SXP-Simon/the-repo-for-NCUSCC.git
 **在此声明，我的本次实验中选择的矩阵乘法计算方法为最原始的手撕矩阵方法，使用for循环的嵌套，
 时间复杂度为O(n^3),至于原因我在后文实验过程中遇到的问题部分会做出回答。由于时间复杂度过大，
 我选择采取numba的njit装饰器对python语法进行c类语言转译加速，将尽量进行控制变量比较。
-分析部分不会将比较两者的柱状图呈现，只比较不同规模的进程数效果。多方案比较将在分析部分后呈现。**
+分析部分不会将比较两者，只比较自身不同规模的进程数效果。多方案比较将在分析部分后呈现。**
 
 ***
 
@@ -539,9 +553,147 @@ if __name__ == "__main__":
 import matplotlib.pyplot as plt确保这个设置在导入 pyplot之前进行。
 
 其实也没有必要这样，只要不调用plt.show()就行，我们只需要将svg矢量图保存即可。
+具体可视化示例可见仓库*save.py*文件。
+
+
 ```python
 plt.savefig('文件名。svg',format='svg')
 ```
+***
+## 四.尾声
+
+### 1.SciPy库linalg模块的浅显涉猎
+scipy.linalg 是 SciPy 库中的一个模块，它提供了大量的线性代数运算功能。这个模块基于 NumPy 数组，
+并且与 NumPy 的 numpy.linalg 模块有很多相似之处，但 scipy.linalg 提供了更多的功能，特别是针对稀疏矩阵和一些高级线性代数运算。
+
+>scipy.linalg 的一些主要功能包括：
+> 
+>·矩阵分解：包括奇异值分解（SVD）、QR 分解、LU 分解、Cholesky 分解等。这些分解对于解决线性方程组、最小二乘问题、特征值问题等非常重要。
+>
+>·求解线性方程组：提供了多种方法来求解线性方程组，包括使用 LU 分解、QR 分解和求解器专门针对稀疏矩阵。
+>
+>·特征值和特征向量：可以计算矩阵的特征值和特征向量，这对于许多科学和工程问题非常重要，比如稳定性分析、振动分析等。
+>
+>·矩阵函数：提供了一些矩阵函数，如矩阵的平方根、指数、对数等。
+>
+>·优化和正则化：提供了一些用于优化和正则化的工具，如最小二乘法和 Tikhonov 正则化。
+>
+后期学习可以进行一些深入了解。
+
+### 2.矩阵乘法一种算法优化--*Strasssen*算法
+
+*Strassen算法*：
+Strassen算法是一种分治算法，用于加速矩阵乘法。它将两个 2×2 ,2×2 矩阵的乘法分解为7次较小的矩阵乘法，
+从而减少所需的乘法次数。Strassen算法的基本思想是将原始问题分解为更小的子问题，然后递归地解决这些子问题。
+
+Strassen算法的步骤如下：
+
+        1.将输入的矩阵A，B分割为四个n/2,n/2的子矩阵；
+        2.使用7次矩阵计算乘法计算10个中间矩阵；
+        3.合并这些中间矩阵以得到结果矩阵；
+        4.递归的思想。
+
+
+Strassen算法的实现较为复杂，需要处理子矩阵的分割和合并。在实际应用中，Strassen算法在小矩阵上可能不如传统算法快，
+因为递归的开销可能超过节省的乘法次数。但对于大型矩阵，Strassen算法可以显著提高效率。
+
+下面是一个Strassen算法的Python实现示例。这个实现考虑了矩阵大小为2的幂的情况，并使用递归方法来计算矩阵乘法。
+```python
+import numpy as np
+
+def strassen(A, B):
+    # 基本情况：当矩阵大小为1时，直接计算乘积
+    if len(A) == 1:
+        return A * B
+
+    # 分割矩阵
+    n = len(A)
+    half = n // 2
+    A11 = A[:half, :half]
+    A12 = A[:half, half:]
+    A21 = A[half:, :half]
+    A22 = A[half:, half:]
+    B11 = B[:half, :half]
+    B12 = B[:half, half:]
+    B21 = B[half:, :half]
+    B22 = B[half:, half:]
+
+    # 计算P1到P7
+    P1 = strassen(A11 + A22, B11 + B22)
+    P2 = strassen(A21 + A22, B11)
+    P3 = strassen(A11, B12 - B22)
+    P4 = strassen(A22, B21 - B11)
+    P5 = strassen(A11 + A12, B22)
+    P6 = strassen(A21 - A11, B11 + B12)
+    P7 = strassen(A12 - A22, B21 + B22)
+
+    # 合并结果
+    C11 = P1 + P4 - P5 + P7
+    C12 = P3 + P5
+    C21 = P2 + P4
+    C22 = P1 - P2 + P3 + P6
+
+    # 构造结果矩阵
+    C = np.vstack((np.hstack((C11, C12)), np.hstack((C21, C22))))
+
+    return C
+
+# 示例
+A = np.array([[1, 2], [3, 4]])
+B = np.array([[2, 0], [1, 3]])
+
+result = strassen(A, B)
+print(result)
+```
+
+### 3.Numba利用装饰器cuda.jit利用GPU加速
+*numba*库实现了对CUDA的python绑定，允许开发者使用Python编写CUDA内核，并将其自动编译为可以在GPU上运行的代码。
+
+下面是一个利用numba调用CUDA完成矩阵乘法的方法
+```python
+from numba import cuda
+import numpy as np
+
+@cuda.jit
+def matrixMulCUDA(A, B, C, n):
+    row, col = cuda.grid(2)
+    if row < n and col < n:
+        sum = 0
+        for i in range(n):
+            sum += A[row, i] * B[i, col]
+        C[row, col] = sum
+
+# 设置矩阵大小
+n = 1024
+A = np.random.rand(n, n)
+B = np.random.rand(n, n)
+C = np.zeros((n, n))
+
+# 设置CUDA网格和块的大小
+threads_per_block = (16, 16)
+blocks_per_grid_x = int(np.ceil(n / threads_per_block[0]))
+blocks_per_grid_y = int(np.ceil(n / threads_per_block[1]))
+blocks_per_grid = (blocks_per_grid_x, blocks_per_grid_y)
+
+# 分配设备内存并复制数据
+d_A = cuda.to_device(A)
+d_B = cuda.to_device(B)
+d_C = cuda.device_array((n, n))
+
+# 调用CUDA内核
+matrixMulCUDA[blocks_per_grid, threads_per_block](d_A, d_B, d_C, n)
+
+# 将结果复制回主机
+C = d_C.copy_to_host()
+
+# 输出结果
+print(C)
+```
+### 4.其他多进程方法
+1. pathos模块
+2. concurrent.futures模块
+
+但是由于考核时间紧张，只是粗略看了一点，其实与multiprocessing库方法类似。
 
 ***
 最后的保留节目
