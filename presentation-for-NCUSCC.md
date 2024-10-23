@@ -5,7 +5,29 @@
     微信：night-helianthus
 ***
 
-[TOC]
+    目录：
+    **南昌大学超算俱乐部考核题(Python)的实验报告**   
+        考核要求:   
+            一.环境搭建   
+                1.配置虚拟机:在虚拟机中安装Ubuntu22.04 LTS操作系统。 
+                2.安装IDE: pycharm    
+                3.pycharm虚拟环境中必要的环境配置   
+                4.git的环境搭建  
+            二.考核部分的multiprocessing与mpi4py的比较    
+                1.multiprocessing库的分析
+                    拓展一个多进程库:joblib
+                2.mpi4py库分析
+                3.多方案的比较
+            三.实验过程中遇到的问题
+                1.调用已有实现矩阵乘法的库函数进行实验带来的问题
+                2.OpenMPI安装困难
+                3.ubuntu系统中安装的matplotlib进行数据可视化时调用plt.show()方法报错。
+            四.尾声
+                1.SciPy库linalg模块的浅显涉猎
+                2.矩阵乘法一种算法优化--Strasssen算法
+                3.Numba利用装饰器cuda.jit利用GPU加速
+                4.其他多进程方法特别鸣谢
+
 
 ## **考核要求：**
 ![ECCF30E1EE39A0B2A385159BBBCAF462.jpg](https://www.helloimg.com/i/2024/10/20/671484f1c731b.jpg)
@@ -107,6 +129,11 @@ git clone git@github.com:SXP-Simon/the-repo-for-NCUSCC.git
 我选择采取numba的njit装饰器对python语法进行c类语言转译加速，将尽量进行控制变量比较。
 分析部分不会将比较两者，只比较自身不同规模的进程数效果。多方案比较将在分析部分后呈现。**
 
+基于各个库实现的矩阵乘法并行计算逻辑大致如下：
+>1. matrix_multiple函数实现矩阵乘法方法；
+>2. split_matrix函数实现矩阵分块，方便并行计算进行；
+>3. parallel_matrix_multiple函数调用多进程方法，最后合并结果矩阵。
+
 ***
 
 ### 1.multiprocessing库的分析
@@ -136,8 +163,8 @@ def split_matrix(A, B, num_splits):
     split_size_A = A.shape[0] // num_splits
     split_size_B = B.shape[1] // num_splits
     # 分割矩阵 A 和 B
-    A_splits = [A[i*split_size_A:(i+1)*split_size_A] for i in range(num_splits)]
-    B_splits = [B[:, i*split_size_B:(i+1)*split_size_B] for i in range(num_splits)]
+    A_splits = [np.ascontiguousarray(A[i*split_size_A:(i+1)*split_size_A]) for i in range(num_splits)]
+    B_splits = [np.ascontiguousarray(B[:, i*split_size_B:(i+1)*split_size_B]) for i in range(num_splits)]
     return A_splits, B_splits
 
 def parallel_matrix_multiply(A, B, num_splits):
@@ -180,14 +207,115 @@ if __name__ == "__main__":
 依次为1000，2000，5000和10000规模的矩阵乘法）
 
 ![mp_1000.png](https://www.helloimg.com/i/2024/10/21/6715d2b5ec2c1.png)
+<p align="center">multiprocessing库实现1000*1000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
 ![mp_2000.png](https://www.helloimg.com/i/2024/10/21/6715d2b618518.png)
+<p align="center">multiprocessing库实现2000*2000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
 ![mp_5000.png](https://www.helloimg.com/i/2024/10/21/6715d2b5d7378.png)
+<p align="center">multiprocessing库实现5000*5000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
 ![mp_10000.png](https://www.helloimg.com/i/2024/10/21/6715d2b5e6995.png)
+<p align="center">multiprocessing库实现10000*10000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
  
     经分析：
     在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
     在数据规模较大时，并行运算带来的加速效果明显，总体上进程越多，时间缩短，效率提高。
     
+***
+
+#### 拓展一个多进程库：joblib
+
+joblib是一个基于multiprocessing库的并行实现，特别优化了在数组处理和磁盘缓存发方面，
+语法简洁，容易上手。在服务启动后，第一次运行可能会比后续运行多耗时一些，因为需要分配进程。
+但一旦初始化完成，后续的并行计算将更加高效。
+
+安装joblib
+```terminal
+pip install joblib
+```
+joblib并行框架例子
+```python
+import numpy as np
+from joblib import Parallel, delayed
+import time
+from numba import njit
+
+@njit()
+def matrix_multiply(A_block, B_block):
+    # 初始化结果矩阵块
+    result_block = np.zeros((A_block.shape[0], B_block.shape[1]))
+    # 使用基本的矩阵乘法实现
+    for i in range(A_block.shape[0]):
+        for j in range(B_block.shape[1]):
+            for k in range(A_block.shape[1]):
+                result_block[i, j] += A_block[i, k] * B_block[k, j]
+    return result_block
+@njit()
+def split_matrix(A, B, num_splits):
+    # 计算每个子块的大小
+    split_size_A = A.shape[0] // num_splits
+    split_size_B = B.shape[1] // num_splits
+    # 分割矩阵 A 和 B
+    A_splits = [np.ascontiguousarray(A[i*split_size_A:(i+1)*split_size_A]) for i in range(num_splits)]
+    B_splits = [np.ascontiguousarray(B[:, i*split_size_B:(i+1)*split_size_B]) for i in range(num_splits)]
+    return A_splits, B_splits
+
+def parallel_matrix_multiply(A, B, num_splits):
+    A_splits, B_splits = split_matrix(A, B, num_splits)
+
+    # 使用 joblib 进行并行计算
+    results = Parallel(n_jobs=num_splits)(
+        delayed(matrix_multiply)(A_splits[i], B_splits[j])
+        for i in range(num_splits)
+        for j in range(num_splits)
+    )
+
+    # 初始化结果矩阵
+    final_result = np.zeros((A.shape[0], B.shape[1]))
+
+    # 将子块结果合并到最终结果矩阵中
+    split_size_A = A.shape[0] // num_splits
+    split_size_B = B.shape[1] // num_splits
+    for idx, (i, j) in enumerate([(i, j) for i in range(num_splits) for j in range(num_splits)]):
+        final_result[i*split_size_A:(i+1)*split_size_A, j*split_size_B:(j+1)*split_size_B] = results[idx]
+
+    return final_result
+
+if __name__ == "__main__":
+    n = 2000
+    A = np.random.rand(n, n)
+    B = np.random.rand(n, n)
+    num_splits = 8
+
+    starttime = time.time()
+    result = parallel_matrix_multiply(A, B, num_splits)
+    print("Time taken for parallel matrix multiply with joblib:", time.time() - starttime)
+
+    starttime = time.time()
+    np.dot(A, B)
+    print("Time taken for numpy dot product:", time.time() - starttime)
+
+    print(result.shape)
+    np.testing.assert_allclose(result, np.dot(A, B))
+```
+**joblib结果**（这里不做详细介绍，分别为1000，2000规模的矩阵乘法）
+
+![joblib_1000.png](https://www.helloimg.com/i/2024/10/21/6715d926a2150.png)
+<p align="center">joblib库实现1000*1000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
+![joblib_2000.png](https://www.helloimg.com/i/2024/10/21/6715d926a4bbe.png)
+<p align="center">joblib库实现2000*2000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
+    joblib数据量小时无优势，数据量大时优势明显，而且在多进程资源优化方面优势明显，
+    后文将用图像直观呈现。
 ***
 
 ### 2.mpi4py库分析
@@ -293,8 +421,16 @@ if __name__ == "__main__":
 10进程下mpi方法时间超过了1800s,2进程下超过了5400s,效果较差。）
 
 ![mpi_1000.png](https://www.helloimg.com/i/2024/10/21/6715d5fa49656.png)
+<p align="center">mpi4py库实现1000*1000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
 ![mpi_2000.png](https://www.helloimg.com/i/2024/10/21/6715d5fa3c878.png)
+<p align="center">mpi4py库实现2000*2000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
+
 ![mpi_5000.png](https://www.helloimg.com/i/2024/10/21/6715d5fa3e936.png)
+<p align="center">mpi4py库实现5000*5000规模并行矩阵乘法</p>
+<p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
 
     经分析：
     在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
@@ -302,97 +438,24 @@ if __name__ == "__main__":
 
 ***
 
-#### 拓展一个多进程库：joblib
 
-joblib是一个基于multiprocessing库的并行实现，特别优化了在数组处理和磁盘缓存发方面，
-语法简洁，容易上手。在服务启动后，第一次运行可能会比后续运行多耗时一些，因为需要分配进程。
-但一旦初始化完成，后续的并行计算将更加高效。
-
-安装joblib
-```terminal
-pip install joblib
-```
-joblib并行框架例子
-```python
-import numpy as np
-from joblib import Parallel, delayed
-import time
-from numba import njit
-
-@njit()
-def matrix_multiply(A_block, B_block):
-    # 初始化结果矩阵块
-    result_block = np.zeros((A_block.shape[0], B_block.shape[1]))
-    # 使用基本的矩阵乘法实现
-    for i in range(A_block.shape[0]):
-        for j in range(B_block.shape[1]):
-            for k in range(A_block.shape[1]):
-                result_block[i, j] += A_block[i, k] * B_block[k, j]
-    return result_block
-@njit()
-def split_matrix(A, B, num_splits):
-    # 计算每个子块的大小
-    split_size_A = A.shape[0] // num_splits
-    split_size_B = B.shape[1] // num_splits
-    # 分割矩阵 A 和 B
-    A_splits = [np.ascontiguousarray(A[i*split_size_A:(i+1)*split_size_A]) for i in range(num_splits)]
-    B_splits = [np.ascontiguousarray(B[:, i*split_size_B:(i+1)*split_size_B]) for i in range(num_splits)]
-    return A_splits, B_splits
-
-def parallel_matrix_multiply(A, B, num_splits):
-    A_splits, B_splits = split_matrix(A, B, num_splits)
-
-    # 使用 joblib 进行并行计算
-    results = Parallel(n_jobs=num_splits)(
-        delayed(matrix_multiply)(A_splits[i], B_splits[j])
-        for i in range(num_splits)
-        for j in range(num_splits)
-    )
-
-    # 初始化结果矩阵
-    final_result = np.zeros((A.shape[0], B.shape[1]))
-
-    # 将子块结果合并到最终结果矩阵中
-    split_size_A = A.shape[0] // num_splits
-    split_size_B = B.shape[1] // num_splits
-    for idx, (i, j) in enumerate([(i, j) for i in range(num_splits) for j in range(num_splits)]):
-        final_result[i*split_size_A:(i+1)*split_size_A, j*split_size_B:(j+1)*split_size_B] = results[idx]
-
-    return final_result
-
-if __name__ == "__main__":
-    n = 2000
-    A = np.random.rand(n, n)
-    B = np.random.rand(n, n)
-    num_splits = 8
-
-    starttime = time.time()
-    result = parallel_matrix_multiply(A, B, num_splits)
-    print("Time taken for parallel matrix multiply with joblib:", time.time() - starttime)
-
-    starttime = time.time()
-    np.dot(A, B)
-    print("Time taken for numpy dot product:", time.time() - starttime)
-
-    print(result.shape)
-    np.testing.assert_allclose(result, np.dot(A, B))
-```
-**joblib结果**（这里不做详细介绍，分别为1000，2000规模的矩阵乘法）
-
-![joblib_1000.png](https://www.helloimg.com/i/2024/10/21/6715d926a2150.png)
-![joblib_2000.png](https://www.helloimg.com/i/2024/10/21/6715d926a4bbe.png)
-
-    joblib数据量小时无优势，数据量大时优势明显，而且在多进程资源优化方面优势明显，
-    后文将用图像直观呈现。
-***
 
 ### 3.多方案的比较
 ( 赛 博 斗 蛐 蛐 环 节 )
 
+下方图表中，**蓝色**的mp代表**multiprocessing**库，**绿色**的jl代表**joblib**库，**红色**的mpi代表**mpi4py**库。
+
 ![1000scale.png](https://www.helloimg.com/i/2024/10/21/6715db8506d11.png)
+<p align="center">1000*1000矩阵乘法比较效果</p>
+
 ![2000scale.png](https://www.helloimg.com/i/2024/10/21/6715db8513d37.png)
+<p align="center">2000*2000矩阵乘法比较效果</p>
+
 ![5000scale.png](https://www.helloimg.com/i/2024/10/21/6715db851fbcf.png)
+<p align="center">5000*5000矩阵乘法比较效果</p>
+
 ![10000scale.png](https://www.helloimg.com/i/2024/10/21/6715db8500419.png)
+<p align="center">10000*10000矩阵乘法比较效果</p>
 
     分析：
     数据规模小时，mpi进程间非阻塞通讯提高了效率，良好利用了并行资源，速度较快；
@@ -411,10 +474,24 @@ if __name__ == "__main__":
 
 ## 三.实验过程中遇到的问题
 
-### I.优化方案优化了速度，却没有优化我的效率
+### 1.调用已有实现矩阵乘法的库函数进行实验带来的问题
 使用numpy.dot()方法计算矩阵乘法确实很快，不要任何处理，可以达到10000*10000规模的矩阵乘法5秒内结束，
-SciPy库里的dgemm方法也是差不多，但是如果我想参考它们并行的效率，那么所有多进程方法将跑不过单进程。最后，
-我选择最原始的办法，时间复杂度为O(n^3)，但是由于时间过长，采用numba的njit装饰器加速。
+SciPy库里的dgemm方法也是差不多，但是如果我想参考它们并行的效率，那么所有多进程方法将跑不过单进程。由于害怕对实验结果分析有不好影响，
+最后，我选择最原始的办法，时间复杂度为O(n^3)，但是由于时间过长，采用numba的njit装饰器加速。
+```python
+@njit
+def matrix_multiply(A_block, B_block):
+    # 初始化结果矩阵块
+    result_block = np.zeros((A_block.shape[0], B_block.shape[1]))
+    # 使用基本的矩阵乘法实现
+    for i in range(A_block.shape[0]):
+        for j in range(B_block.shape[1]):
+            for k in range(A_block.shape[1]):
+                result_block[i, j] += A_block[i, k] * B_block[k, j]
+    return result_block
+```
+
+下面是使用numpy.dot()方法和scipy.linalg.blas中的dgemm方法实现并行矩阵乘法的示例。
 
 ```python
 #numpy内置方法完成矩阵乘法
