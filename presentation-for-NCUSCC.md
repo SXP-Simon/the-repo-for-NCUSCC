@@ -3,30 +3,10 @@
     FROM 回归天空
     QQ: 903928770
     微信：night-helianthus
-***
 
-    目录：
-    **南昌大学超算俱乐部考核题(Python)的实验报告**   
-        考核要求:   
-            一.环境搭建   
-                1.配置虚拟机:在虚拟机中安装Ubuntu22.04 LTS操作系统。 
-                2.安装IDE: pycharm    
-                3.pycharm虚拟环境中必要的环境配置   
-                4.git的环境搭建  
-            二.考核部分的multiprocessing与mpi4py的比较    
-                1.multiprocessing库的分析
-                    拓展一个多进程库:joblib
-                2.mpi4py库分析
-                3.多方案的比较
-            三.实验过程中遇到的问题
-                1.调用已有实现矩阵乘法的库函数进行实验带来的问题
-                2.OpenMPI安装困难
-                3.ubuntu系统中安装的matplotlib进行数据可视化时调用plt.show()方法报错。
-            四.尾声
-                1.SciPy库linalg模块的浅显涉猎
-                2.矩阵乘法一种算法优化--Strasssen算法
-                3.Numba利用装饰器cuda.jit利用GPU加速
-                4.其他多进程方法特别鸣谢
+
+[toc]
+
 
 
 ## **考核要求：**
@@ -35,18 +15,16 @@
 ![7DDB47BE84E236ED7E64DE2149860080.jpg](https://www.helloimg.com/i/2024/10/20/671484f1ac073.jpg)
 ![CC7D6C100E085087492A8D895BB8BE61.jpg](https://www.helloimg.com/i/2024/10/20/671484f182956.jpg)
 
+***
 ## 一.环境搭建
 
 ### 1.配置虚拟机：在虚拟机中安装 Ubuntu 22.04 LTS 操作系统。
 
-使用VMware Workstation，首先在镜像站（如清华源）中下载ubuntu镜像文件，根据安装指南完成vm安装，
-创建ubuntu64位虚拟机，由于要进行多进程测试，将处理器部分的处理器数量设置为4，每个处理器内核数为4，
-网络设置为最方便使用的NAT模式，安装ubuntu系统，在Software&updates中换源（如阿里云），完成基本配置。
+使用VMware Workstation，首先在镜像站（如清华源）中下载ubuntu镜像文件，根据安装指南完成vm安装，创建ubuntu64位虚拟机，由于要进行多进程测试，将处理器部分的处理器数量设置为4，每个处理器内核数为4，网络设置为最方便使用的NAT模式，安装ubuntu系统，在Software&updates中换源（如阿里云），完成基本配置。
 
 ### 2.安装IDE: pycharm
 
-**第一种**最容易理解的办法是到类似应用商店的 ubuntu software 中下载，只需搜索+点击下载即可。首先确保更新，
-然后搜索pycharm community edition，终端更新指令如下。
+**第一种**最容易理解的办法是到类似应用商店的 ubuntu software 中下载，只需搜索+点击下载即可。首先确保更新，然后搜索pycharm community edition，终端更新指令如下。
 ```bash
 sudo apt update
 ```
@@ -105,8 +83,7 @@ pip install mpi4py
 ```
 
 ### 4.git的环境搭建
-github与git的配置，登录github，配置Ubuntu的.ssh文件，将公钥上传github，方便后期git上传与拉取
-终端命令生成ssh对：
+github与git的配置，登录github，配置Ubuntu的.ssh文件，将公钥上传github，方便后期git上传与拉取终端命令生成ssh对：
 ```bash
 ssh-keygen -t rsa -b 4096 -C "邮箱地址"
 ```
@@ -119,8 +96,9 @@ ssh -T git@github.com
 cd ~/PycharmProjects/pythonProject
 git clone git@github.com:SXP-Simon/the-repo-for-NCUSCC.git
 ```
-若要实现ubuntu无障碍连接到www.github.com,推荐使用金钱方面无痛但是需要配置一点证书的watt tooltik。
-至此，已经基本搭建测试所需要的环境了。
+若要实现ubuntu无障碍连接到www.github.com,推荐使用金钱方面无痛但是需要配置一点证书的watt tooltik。至此，已经基本搭建测试所需要的环境了。
+
+***
 
 ## 二.考核部分的multiprocessing与mpi4py的比较
 
@@ -203,8 +181,7 @@ if __name__ == "__main__":
     np.testing.assert_allclose(result, np.dot(A, B))
     #验证计算结果
 ```
-**multiprocessing结果**（出了点小问题但是没有修改，下面图的横轴为进程数，纵轴为时间（s），
-依次为1000，2000，5000和10000规模的矩阵乘法）
+**multiprocessing结果**
 
 ![mp_1000.png](https://www.helloimg.com/i/2024/10/21/6715d2b5ec2c1.png)
 <p align="center">multiprocessing库实现1000*1000规模并行矩阵乘法</p>
@@ -222,18 +199,16 @@ if __name__ == "__main__":
 <p align="center">multiprocessing库实现10000*10000规模并行矩阵乘法</p>
 <p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
 
- 
+
     经分析：
     在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
     在数据规模较大时，并行运算带来的加速效果明显，总体上进程越多，时间缩短，效率提高。
-    
+
 ***
 
 #### 拓展一个多进程库：joblib
 
-joblib是一个基于multiprocessing库的并行实现，特别优化了在数组处理和磁盘缓存发方面，
-语法简洁，容易上手。在服务启动后，第一次运行可能会比后续运行多耗时一些，因为需要分配进程。
-但一旦初始化完成，后续的并行计算将更加高效。
+joblib是一个基于multiprocessing库的并行实现，特别优化了在数组处理和磁盘缓存发方面，语法简洁，容易上手。在服务启动后，第一次运行可能会比后续运行多耗时一些，因为需要分配进程。但一旦初始化完成，后续的并行计算将更加高效。
 
 安装joblib
 ```terminal
@@ -320,9 +295,7 @@ if __name__ == "__main__":
 
 ### 2.mpi4py库分析
 
-mpi4py是一个在python中实现MPI标准的库，提供面向对象接口使得python程序可以利用多处理器进行并行运算，
-但是比较适合联机玩家（多机跨节点，服务器层面），单机玩家使用时优势不明显。我在实验过程中使用了进程间集体通信和
-非阻塞通信等方法进行了测试。
+mpi4py是一个在python中实现MPI标准的库，提供面向对象接口使得python程序可以利用多处理器进行并行运算，但是比较适合联机玩家（多机跨节点，服务器层面），单机玩家使用时优势不明显。我在实验过程中使用了进程间集体通信和非阻塞通信等方法进行了测试。
 
 ```python
 import numpy as np
@@ -465,7 +438,7 @@ if __name__ == "__main__":
     multiprocessing。
     
     网上查询结果获取的结论如下：
-
+    
     “如果你的应用主要在单机上运行，且不需要跨节点的分布式计算，
     multiprocessing 可能是一个更简单、更易上手的选择。
     如果你的应用需要在多节点的集群上运行（如服务器层面），
@@ -475,9 +448,7 @@ if __name__ == "__main__":
 ## 三.实验过程中遇到的问题
 
 ### 1.调用已有实现矩阵乘法的库函数进行实验带来的问题
-使用numpy.dot()方法计算矩阵乘法确实很快，不要任何处理，可以达到10000*10000规模的矩阵乘法5秒内结束，
-SciPy库里的dgemm方法也是差不多，但是如果我想参考它们并行的效率，那么所有多进程方法将跑不过单进程。由于害怕对实验结果分析有不好影响，
-最后，我选择最原始的办法，时间复杂度为O(n^3)，但是由于时间过长，采用numba的njit装饰器加速。
+使用numpy.dot()方法计算矩阵乘法确实很快，不要任何处理，可以达到10000*10000规模的矩阵乘法5秒内结束，SciPy库里的dgemm方法也是差不多，但是如果我想参考它们并行的效率，那么所有多进程方法将跑不过单进程。由于害怕对实验结果分析有不好影响，最后，我选择最原始的办法，时间复杂度为O(n^3)，但是由于时间过长，采用numba的njit装饰器加速。
 ```python
 @njit
 def matrix_multiply(A_block, B_block):
@@ -624,13 +595,9 @@ if __name__ == "__main__":
 具体实现见前面MPICH的安装。
 
 ### 3.ubuntu系统中安装的matplotlib进行数据可视化时调用plt.show()方法报错。
-警告信息表明Matplotlib 当前使用的是 agg后端，这是一个非GUI后端，通常用于生成图形文件而不是在屏幕上显示图形。
-如果你想要显示图形，你需要确保Matplotlib 使用的是一个 GUI后端，比如 TkAgg 、 Qt5Agg等。
-可以通过在代码中显式设置后端来解决这个问题，如:import matplotlib matplotlib.use('TkAgg')。
-import matplotlib.pyplot as plt确保这个设置在导入 pyplot之前进行。
+警告信息表明Matplotlib 当前使用的是 agg后端，这是一个非GUI后端，通常用于生成图形文件而不是在屏幕上显示图形。如果你想要显示图形，你需要确保Matplotlib 使用的是一个 GUI后端，比如 TkAgg 、 Qt5Agg等。可以通过在代码中显式设置后端来解决这个问题，如:import matplotlib matplotlib.use('TkAgg')。import matplotlib.pyplot as plt确保这个设置在导入 pyplot之前进行。
 
-其实也没有必要这样，只要不调用plt.show()就行，我们只需要将svg矢量图保存即可。
-具体可视化示例可见仓库*save.py*文件。
+其实也没有必要这样，只要不调用plt.show()就行，我们只需要将svg矢量图保存即可。具体可视化示例可见仓库*save.py*文件。
 
 
 ```python
@@ -640,8 +607,7 @@ plt.savefig('文件名。svg',format='svg')
 ## 四.尾声
 
 ### 1.SciPy库linalg模块的浅显涉猎
-scipy.linalg 是 SciPy 库中的一个模块，它提供了大量的线性代数运算功能。这个模块基于 NumPy 数组，
-并且与 NumPy 的 numpy.linalg 模块有很多相似之处，但 scipy.linalg 提供了更多的功能，特别是针对稀疏矩阵和一些高级线性代数运算。
+scipy.linalg 是 SciPy 库中的一个模块，它提供了大量的线性代数运算功能。这个模块基于 NumPy 数组，并且与 NumPy 的 numpy.linalg 模块有很多相似之处，但 scipy.linalg 提供了更多的功能，特别是针对稀疏矩阵和一些高级线性代数运算。
 
 >scipy.linalg 的一些主要功能包括：
 > 
@@ -660,8 +626,7 @@ scipy.linalg 是 SciPy 库中的一个模块，它提供了大量的线性代数
 ### 2.矩阵乘法一种算法优化--*Strasssen*算法
 
 *Strassen算法*：
-Strassen算法是一种分治算法，用于加速矩阵乘法。它将两个 2×2 ,2×2 矩阵的乘法分解为7次较小的矩阵乘法，
-从而减少所需的乘法次数。Strassen算法的基本思想是将原始问题分解为更小的子问题，然后递归地解决这些子问题。
+Strassen算法是一种分治算法，用于加速矩阵乘法。它将两个 2×2 ,2×2 矩阵的乘法分解为7次较小的矩阵乘法，从而减少所需的乘法次数。Strassen算法的基本思想是将原始问题分解为更小的子问题，然后递归地解决这些子问题。
 
 Strassen算法的步骤如下：
 
@@ -671,8 +636,7 @@ Strassen算法的步骤如下：
         4.递归的思想。
 
 
-Strassen算法的实现较为复杂，需要处理子矩阵的分割和合并。在实际应用中，Strassen算法在小矩阵上可能不如传统算法快，
-因为递归的开销可能超过节省的乘法次数。但对于大型矩阵，Strassen算法可以显著提高效率。
+Strassen算法的实现较为复杂，需要处理子矩阵的分割和合并。在实际应用中，Strassen算法在小矩阵上可能不如传统算法快，因为递归的开销可能超过节省的乘法次数。但对于大型矩阵，Strassen算法可以显著提高效率。
 
 下面是一个Strassen算法的Python实现示例。这个实现考虑了矩阵大小为2的幂的情况，并使用递归方法来计算矩阵乘法。
 ```python
@@ -783,3 +747,10 @@ print(C)
 ·***彩彩CAICAIIs[https://github.com/CAICAIIs](https://github.com/CAICAIIs)***     
 ·***longtitle仙贝[https://github.com/tinymonster123](https://github.com/tinymonster123)***   
 ·***客服小祥[https://github.com/hangone](https://github.com/hangone)***  
+
+
+
+
+<footer>
+&copy; 2024 南昌大学超算俱乐部
+</footer>
