@@ -26,7 +26,8 @@
                 1.SciPy库linalg模块的浅显涉猎
                 2.矩阵乘法一种算法优化--Strasssen算法
                 3.Numba利用装饰器cuda.jit利用GPU加速
-                4.其他多进程方法特别鸣谢
+                4.其他多进程方法
+            特别鸣谢
 
 
 ## **考核要求：**
@@ -222,11 +223,11 @@ if __name__ == "__main__":
 <p align="center">multiprocessing库实现10000*10000规模并行矩阵乘法</p>
 <p align="center">横轴为实验进程数，纵轴为实验时间（s）</p>
 
- 
+
     经分析：
     在数据规模较小时，并行引起的资源开销占主导地位，进程越多，时间越长，并行效率越低。
     在数据规模较大时，并行运算带来的加速效果明显，总体上进程越多，时间缩短，效率提高。
-    
+
 ***
 
 #### 拓展一个多进程库：joblib
@@ -465,7 +466,7 @@ if __name__ == "__main__":
     multiprocessing。
     
     网上查询结果获取的结论如下：
-
+    
     “如果你的应用主要在单机上运行，且不需要跨节点的分布式计算，
     multiprocessing 可能是一个更简单、更易上手的选择。
     如果你的应用需要在多节点的集群上运行（如服务器层面），
@@ -783,3 +784,8 @@ print(C)
 ·***彩彩CAICAIIs[https://github.com/CAICAIIs](https://github.com/CAICAIIs)***     
 ·***longtitle仙贝[https://github.com/tinymonster123](https://github.com/tinymonster123)***   
 ·***客服小祥[https://github.com/hangone](https://github.com/hangone)***  
+
+
+<footer>
+&copy; 2024 南昌大学超算俱乐部
+</footer>
